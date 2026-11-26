@@ -1,74 +1,53 @@
-name: Build PulseChat Native Kotlin APK
-​on:
-push:
-branches: ["main", "master"]
-workflow_dispatch:
-​jobs:
-build:
-runs-on: ubuntu-latest
-​steps:
-- name: Checkout code
-uses: actions/checkout@v4
-​- name: Auto-unzip project archive and locate Gradle root
-run: |
-ZIP_FILE=""
-if [ -f project.zip ]; then
-ZIP_FILE="project.zip"
-else
-ZIP_FILE=$(ls *.zip 2>/dev/null | head -n 1 || true)
-fi
-​if [ -n "$ZIP_FILE" ]; then
-echo "Unzipping $ZIP_FILE..."
-unzip -o "$ZIP_FILE"
-fi
-​if [ ! -f settings.gradle.kts ]; then
-FOUND=$(find . -maxdepth 4 -name "settings.gradle.kts" | head -n 1 || true)
-if [ -n "FOUND" ]; then
-SRC_DIR=(dirname "$FOUND")
-echo "Copying project files from $SRC_DIR to repository root..."
-cp -rf "$SRC_DIR"/* .
-fi
-fi
-​- name: Sanitize downloaded source files
-run: |
-python3 - << 'EOF'
-import os
-​fence = chr(96) * 3
-exts = ('.kt', '.kts', '.xml', '.json', '.properties')
-​for root, _, files in os.walk('.'):
-parts = root.split(os.sep)
-if '.git' in parts or '.gradle' in parts or 'build' in parts:
-continue
-for fn in files:
-if fn.endswith(exts):
-path = os.path.join(root, fn)
-with open(path, 'r', encoding='utf-8', errors='ignore') as f:
-lines = f.readlines()
-cleaned = [line for line in lines if not line.strip().startswith(fence)]
-if len(cleaned) != len(lines):
-with open(path, 'w', encoding='utf-8') as f:
-f.writelines(cleaned)
-print(f"Cleaned markdown fences in {path}")
-EOF
-​- name: Place google-services.json into app folder
-run: |
-if [ -f google-services.json ]; then
-mkdir -p app
-cp -f google-services.json app/google-services.json
-fi
-​- name: Setup Java 17
-uses: actions/setup-java@v4
-with:
-distribution: temurin
-java-version: 17
-​- name: Setup Gradle 8.7
-uses: gradle/actions/setup-gradle@v4
-with:
-gradle-version: 8.7
-​- name: Build Native Debug APK
-run: gradle assembleDebug --stacktrace
-​- name: Upload Native Kotlin APK
-uses: actions/upload-artifact@v4
-with:
-name: PulseChat-Native-Kotlin-APK
-path: app/build/outputs/apk/debug/app-debug.apk
+{
+"name": "Build PulseChat Native Kotlin APK",
+"on": {
+"push": {},
+"workflow_dispatch": {}
+},
+"jobs": {
+"build": {
+"runs-on": "ubuntu-latest",
+"steps": [
+{
+"name": "Checkout code",
+"uses": "actions/checkout@v4"
+},
+{
+"name": "Auto-unzip and prepare project files",
+"run": "S=settings.gradle.kts G=google-services.json AG=app/google-services.json D=. python3 -c 'import os,shutil,zipfile; e=os.environ; zs=[f for f in os.listdir() if f.endswith(chr(46)+chr(122)+chr(105)+chr(112))]; [zipfile.ZipFile(z).extractall() for z in zs[:1]]; ms=[r for r,d,fs in os.walk(e[chr(68)]) if e[chr(83)] in fs and r!=e[chr(68)]]; [shutil.copytree(m,e[chr(68)],dirs_exist_ok=True) for m in ms[:1] if not os.path.isfile(e[chr(83)])]; os.makedirs(os.path.dirname(e[chr(65)+chr(71)]),exist_ok=True); [shutil.copy2(e[chr(71)],e[chr(65)+chr(71)]) for x in [1] if os.path.isfile(e[chr(71)])]'"
+},
+{
+"name": "Sanitize downloaded source files",
+"run": "E=.kt,.kts,.xml,.json,.properties R=r W=w U=utf-8 I=ignore G=.git D=. python3 -c 'import os; e=os.environ; exts=tuple(e[chr(69)].split(chr(44))); fnc=chr(96)*3; w=lambda ls,p:open(p,e[chr(87)],encoding=e[chr(85)]).writelines(ls); [w([l for l in open(p,e[chr(82)],encoding=e[chr(85)],errors=e[chr(73)]).readlines() if not l.strip().startswith(fnc)],p) for r,d,fs in os.walk(e[chr(68)]) if e[chr(71)] not in r for fn in fs if fn.endswith(exts) for p in [os.path.join(r,fn)]]'"
+},
+{
+"name": "Setup Java 17",
+"uses": "actions/setup-java@v4",
+"with": {
+"distribution": "temurin",
+"java-version": "17"
+}
+},
+{
+"name": "Setup Gradle 8.7",
+"uses": "gradle/actions/setup-gradle@v4",
+"with": {
+"gradle-version": "8.7"
+}
+},
+{
+"name": "Build Native Debug APK",
+"run": "gradle assembleDebug --stacktrace"
+},
+{
+"name": "Upload Native Kotlin APK",
+"uses": "actions/upload-artifact@v4",
+"with": {
+"name": "PulseChat-Native-Kotlin-APK",
+"path": "app/build/outputs/apk/debug/app-debug.apk"
+}
+}
+]
+}
+}
+}
